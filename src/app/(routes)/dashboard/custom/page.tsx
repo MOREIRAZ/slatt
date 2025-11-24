@@ -1,0 +1,109 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import CustomLinkHubCard from "@/components/dashboard/custom-linkhub-card";
+import CreateCustomLinkHubForm from "@/components/dashboard/create-custom-linkhub-form";
+import type { LinkHub } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function CustomLinkHubsPage() {
+  const [customLinkHubs, setCustomLinkHubs] = useState<LinkHub[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchCustomLinkHubs();
+  }, []);
+
+  const fetchCustomLinkHubs = async () => {
+    try {
+      const response = await fetch("/api/linkhubs/custom");
+      if (response.ok) {
+        const data = await response.json();
+        setCustomLinkHubs(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch custom LinkHubs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateSuccess = () => {
+    setIsCreateModalOpen(false);
+    fetchCustomLinkHubs();
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-8 mt-5">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-1/3  rounded "></Skeleton>
+          <Skeleton className="h-8 w-36  rounded "></Skeleton>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, index) => (
+            <Skeleton
+              key={index}
+              className="glass rounded-2xl p-6  h-40 border-muted/80 shadow-lg "
+            ></Skeleton>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 md:p-5">
+      <div className="flex flex-col justify-between md:flex-row md:items-center items-start gap-4">
+        <div>
+          <h1 className="text-xl font-bold">LinkHub Personalizado</h1>
+        </div>
+
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Criar 
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar LinkHub Personalizado</DialogTitle>
+            </DialogHeader>
+            <CreateCustomLinkHubForm onSuccess={handleCreateSuccess} />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {customLinkHubs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {customLinkHubs.map((linkHub) => (
+            <CustomLinkHubCard
+              key={linkHub.id}
+              linkHub={linkHub}
+              onUpdate={fetchCustomLinkHubs}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-12 text-center">
+          <h3 className="text-lg font-medium mb-2">Ainda Não Existem LinkHubs Personalizados.</h3>
+          <p className="text-gray-600 mb-6">
+            Cria LinkHubs especializados para diferentes temas, projetos ou públicos.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

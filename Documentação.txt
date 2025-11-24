@@ -1,0 +1,38 @@
+Dependências principais
+
+Next.js 14 (App Router)
+React 18
+Prisma ORM
+PostgreSQL (Neon - Base de Dados)
+Tailwind CSS
+UploadThing
+bcrypt (hash de passwords)
+
+
+Requisitos
+
+Node.js 18+
+npm ou yarn
+Base de dados PostgreSQL (Neon)
+
+
+Como iniciar o projeto
+
+Instalar dependências: npm install
+Criar as tabelas na base de dados: npx prisma db push
+Iniciar servidor de desenvolvimento: npm run dev
+Abrir no navegador: http://localhost:3000
+
+
+Scripts úteis
+
+npm run dev       # Inicia o servidor em modo desenvolvimento
+npm run build     # Gera build de produção
+npm start         # Inicia versão compilada
+npx prisma migrate deploy #Aplicar as migrations
+npx prisma studio # Interface visual da base de dados
+
+
+Deploy
+
+Vercel (Vercel → Project → Settings → Environment Variables)

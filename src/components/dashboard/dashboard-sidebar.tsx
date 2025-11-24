@@ -1,0 +1,168 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  Palette,
+  Settings,
+  X,
+  Plus,
+  Moon,
+  Sun,
+  SkipBackIcon,
+  Menu,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "../ui/theme-toggle";
+import { useTheme } from "next-themes";
+import { Button } from "../ui/button";
+import { toast } from "sonner";
+import Image from "next/image"; // <-- IMPORTANTE
+
+const navigation = [
+  { name: "Dashboard", href: "/dashboard/settings", icon: Home },
+  { name: "LinkHub Pessoal", href: "/dashboard/links", icon: Plus },
+  { name: "LinkHub Personalizado", href: "/dashboard/custom", icon: Settings },
+  { name: "Design", href: "/dashboard/appearance", icon: Palette },
+];
+
+export default function DashboardSidebar() {
+  const pathname = usePathname();
+  const { theme } = useTheme();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const res = await response.json();
+      if (!res.success) {
+        toast.error("Failed to logout");
+        return;
+      }
+      window.location.href = "/";
+    } catch {
+      toast.error("Failed to logout");
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen((prev) => !prev);
+  };
+
+  return (
+    <>
+      {/* MOBILE MENU BUTTON */}
+      <button
+        className={` top-4 right-4 z-50 lg:hidden p-2 rounded-md bg-background border border-border
+          ${!isMobileMenuOpen ? "fixed" : "hidden"}
+        `}
+        onClick={toggleMobileMenu}
+        aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={isMobileMenuOpen}
+      >
+        {!isMobileMenuOpen && <Menu className="w-6 h-6" />}
+      </button>
+
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          onClick={toggleMobileMenu}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* SIDEBAR */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 h-screen shadow-lg transform transition-transform duration-300 ease-in-out bg-background",
+          "w-64",
+          isMobileMenuOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0"
+        )}
+        role="navigation"
+        aria-label="Dashboard navigation"
+      >
+        {/* HEADER */}
+        <div className="flex items-center justify-between h-16 px-6 border-b border-border">
+          <Logo />
+          <button
+            onClick={toggleMobileMenu}
+            className="lg:hidden text-gray-400 hover:text-gray-600"
+            aria-label="Close sidebar"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* NAVIGATION */}
+        <nav className="mt-8 px-4">
+          <ul className="space-y-2">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors",
+                      isActive
+                        ? "bg-secondary"
+                        : "hover:bg-secondary/30 text-muted-foreground"
+                    )}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <item.icon
+                      className={cn(
+                        "mr-3 h-5 w-5",
+                        isActive ? "text-primary" : "text-gray-400"
+                      )}
+                    />
+                    {item.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* THEME TOGGLE */}
+        <div className="mt-6 px-4">
+          <ThemeToggle>
+            <div className="flex items-center text-muted-foreground justify-center gap-2 px-4 py-3 text-sm hover:bg-secondary/30 rounded-lg transition-colors">
+              {theme !== "light" ? <Sun size={16} /> : <Moon size={16} />}
+              Alterar Tema
+            </div>
+          </ThemeToggle>
+        </div>
+
+        {/* LOGOUT BUTTON */}
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          className="absolute bottom-4 left-[50%] -translate-x-[50%] flex items-center gap-2"
+        >
+          <SkipBackIcon size={14} />
+          Sair
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/* ---- LOGO COMPONENT (CORRIGIDO) ---- */
+
+export const Logo = () => (
+  <h1 className="text-xl text-center font-bold flex items-center gap-x-2">
+    <Image
+      src="/logo.png"
+      alt="Linkhub logo"
+      width={24}
+      height={24}
+      className="h-6 w-6"
+    />
+    Linkhub
+  </h1>
+);

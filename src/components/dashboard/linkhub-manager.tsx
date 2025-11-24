@@ -1,0 +1,482 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { useState, useEffect } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  Plus,
+  GripVertical,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  BarChart3,
+  Settings,
+  Copy,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import type { LinkHub, Link } from "@/lib/types";
+import AddLinkForm from "./links/add-link-form";
+import EditLinkForm from "./links/edit-link-form";
+import EditLinkHubForm from "./edit-linkhub-form";
+import Image from "next/image"; // <-- IMPORTANTE
+
+interface LinkHubManagerProps {
+  linkHub: LinkHub;
+  isPersonal?: boolean;
+  onupdate?: () => void;
+}
+
+export default function LinkHubManager({
+  linkHub: initialLinkHub,
+  isPersonal = false,
+  onupdate,
+}: LinkHubManagerProps) {
+  const [linkHub, setLinkHub] = useState<LinkHub>(initialLinkHub);
+  const [links, setLinks] = useState<Link[]>(initialLinkHub.links || []);
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [editingLink, setEditingLink] = useState<Link | null>(null);
+  const [editingLinkHub, setEditingLinkHub] = useState(false);
+
+  useEffect(() => {
+    setLinkHub(initialLinkHub);
+    setLinks(initialLinkHub.links || []);
+  }, [initialLinkHub]);
+
+  const refreshLinkHub = async () => {
+    try {
+      const response = await fetch(`/api/linkhubs/${linkHub.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLinkHub(data);
+        setLinks(data.links || []);
+        if (onupdate) onupdate();
+      }
+    } catch (error) {
+      console.error("Failed to refresh LinkHub:", error);
+    }
+  };
+
+  const handleDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(links);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setLinks(items);
+    try {
+      const response = await fetch(
+        `/api/linkhubs/${linkHub.id}/links/reorder`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            links: items.map((link, index) => ({ id: link.id, order: index })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        toast.error("Failed to update link order");
+      } else {
+        if (onupdate) onupdate();
+        toast.success("Link order updated!");
+      }
+    } catch (error) {
+      console.error("Failed to update link order:", error);
+      toast.error("Failed to update link order");
+    }
+  };
+
+  const toggleLinkStatus = async (id: string, isActive: boolean) => {
+    try {
+      const response = await fetch(`/api/links/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+
+      if (response.ok) {
+        setLinks(
+          links.map((link) => (link.id === id ? { ...link, isActive } : link))
+        );
+        if (onupdate) onupdate();
+        toast.success(`Link ${isActive ? "enabled" : "disabled"}`);
+      } else {
+        toast.error("Failed to update link status");
+      }
+    } catch (error) {
+      console.error("Failed to update link status:", error);
+      toast.error("Failed to update link status");
+    }
+  };
+
+  const deleteLink = async (id: string) => {
+    try {
+      const response = await fetch(`/api/links/${id}`, { method: "DELETE" });
+
+      if (response.ok) {
+        setLinks(links.filter((link) => link.id !== id));
+        if (onupdate) onupdate();
+        toast.success("Link deleted successfully");
+      } else {
+        toast.error("Failed to delete link");
+      }
+    } catch (error) {
+      console.error("Failed to delete link:", error);
+      toast.error("Failed to delete link");
+    }
+  };
+
+  const handleLinkAdded = () => {
+    setIsAddingLink(false);
+    if (onupdate) onupdate();
+  };
+
+  const handleLinkEdited = () => {
+    setEditingLink(null);
+    if (onupdate) onupdate();
+  };
+
+  const handleLinkHubEdited = () => {
+    setEditingLinkHub(false);
+    refreshLinkHub();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="glass rounded-2xl md:p-6">
+        <div className="flex flex-col xl:flex-row justify-between mb-4">
+          <div className="flex items-center space-x-4">
+
+            {/* ---------------- AVATAR (CORRIGIDO) ---------------- */}
+            <Image
+              src={
+                linkHub.avatar && !linkHub.avatar.startsWith("http")
+                  ? linkHub.avatar
+                  : "/placeholder.svg"
+              }
+              alt={linkHub.name}
+              width={48}
+              height={48}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+
+            <div>
+              <h2 className="text-xl font-semibold">{linkHub.name}</h2>
+
+              <div className="flex gap-4 items-center">
+                <a
+                  target="_blank"
+                  href={`${process.env.NEXT_PUBLIC_APP_URL}/${linkHub.slug}`}
+                >
+                  <code className="text-sm text-primary flex items-center hover:underline font-medium">
+                    {typeof window !== "undefined"
+                      ? window.location.origin
+                      : "linkhub.io"}
+                    /<p className="max-w-16 sm:max-w-40 overflow-hidden">{linkHub.slug}</p>
+                  </code>
+                </a>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    window.navigator.clipboard.writeText(
+                      `${process.env.NEXT_PUBLIC_APP_URL}/${linkHub.slug}`
+                    );
+                    toast.success("Link copiado!");
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center mt-3 space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingLinkHub(true)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Editar LinkHub
+            </Button>
+
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`/${linkHub.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Live
+              </a>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===================== LISTA DE LINKS ===================== */}
+      <div className="glass rounded-2xl md:px-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">Links ({links.length})</h3>
+
+          <Dialog open={isAddingLink} onOpenChange={setIsAddingLink}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Criar Link
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Criar Novo Link</DialogTitle>
+              </DialogHeader>
+              <AddLinkForm linkHubId={linkHub.id} onSuccess={handleLinkAdded} />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {links.length > 0 ? (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="links">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-3"
+                >
+                  {links.map((link, index) => (
+                    <Draggable key={link.id} draggableId={link.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`flex items-center group p-4 rounded-lg border transition-all ${
+                            link.isActive ? "" : "opacity-60"
+                          } ${
+                            snapshot.isDragging ? "shadow-lg scale-105" : ""
+                          }`}
+                        >
+                          <div {...provided.dragHandleProps} className="mr-3">
+                            <GripVertical className="w-4 h-4 cursor-grab" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+
+                            <div className="flex items-center justify-start space-x-2 mb-1">
+
+                              {/* ------------ LINK ICON (CORRIGIDO) ------------ */}
+                              {link.icon && (
+                                <Image
+                                  src={
+                                    link.icon.startsWith("http")
+                                      ? "/placeholder.svg"
+                                      : link.icon
+                                  }
+                                  alt={link.title}
+                                  width={40}
+                                  height={40}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                />
+                              )}
+
+                              <h4 className="font-medium truncate">
+                                {link.title}
+                              </h4>
+
+                              <span className="md:block hidden">
+                                {link.isActive ? (
+                                  <Eye className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <EyeOff className="w-4 h-4" />
+                                )}
+                              </span>
+                            </div>
+
+                            <a href={link.url} target="_blank">
+                              <p className="text-sm text-primary hover:underline cursor-pointer truncate mb-1">
+                                {link.url}
+                              </p>
+                            </a>
+
+                            {link.description && (
+                              <p className="text-xs truncate">
+                                {link.description}
+                              </p>
+                            )}
+
+                            <div className="flex items-center space-x-4 mt-2">
+                              <span className="text-xs flex items-center">
+                                <BarChart3 className="w-3 h-3 mr-1" />
+                                {link.clicks} clicks
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={link.isActive}
+                              onCheckedChange={(checked) =>
+                                toggleLinkStatus(link.id, checked)
+                              }
+                            />
+
+                            <Button variant="ghost" size="sm" asChild>
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </Button>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+
+                              <DropdownMenuContent align="end">
+
+                                <DropdownMenuItem
+                                  onClick={() => setEditingLink(link)}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-600"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Eliminar
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Eliminar Link
+                                      </AlertDialogTitle>
+
+                                      <AlertDialogDescription>
+                                        Tens a certeza que queres eliminar o link{" "}
+                                        {link.title}? Esta ação não pode ser
+                                        desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Cancelar
+                                      </AlertDialogCancel>
+
+                                      <AlertDialogAction
+                                        onClick={() => deleteLink(link.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <ExternalLink className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-medium mb-2">Ainda não tens links</h4>
+            <p className="text-gray-500 mb-4">
+              Começa a construir o teu LinkHub{" "}
+              {isPersonal ? "pessoal" : "customizado"} ao criar o teu
+              primeiro link.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* -------- Editar Link -------- */}
+      <Dialog open={!!editingLink} onOpenChange={() => setEditingLink(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Link</DialogTitle>
+          </DialogHeader>
+
+          {editingLink && (
+            <EditLinkForm
+              link={editingLink}
+              onSuccess={handleLinkEdited}
+              onCancel={() => setEditingLink(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* -------- Editar LinkHub -------- */}
+      <Dialog open={editingLinkHub} onOpenChange={setEditingLinkHub}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar LinkHub</DialogTitle>
+          </DialogHeader>
+
+          <EditLinkHubForm
+            linkHub={linkHub}
+            onSuccess={handleLinkHubEdited}
+            onCancel={() => setEditingLinkHub(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
