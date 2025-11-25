@@ -47,7 +47,7 @@ import type { LinkHub, Link } from "@/lib/types";
 import AddLinkForm from "./links/add-link-form";
 import EditLinkForm from "./links/edit-link-form";
 import EditLinkHubForm from "./edit-linkhub-form";
-import Image from "next/image"; // <-- IMPORTANTE
+import Image from "next/image";
 
 interface LinkHubManagerProps {
   linkHub: LinkHub;
@@ -174,17 +174,14 @@ export default function LinkHubManager({
 
   return (
     <div className="space-y-6">
+      {/* HEADER */}
       <div className="glass rounded-2xl md:p-6">
         <div className="flex flex-col xl:flex-row justify-between mb-4">
           <div className="flex items-center space-x-4">
 
-            {/* ---------------- AVATAR (CORRIGIDO) ---------------- */}
+            {/* AVATAR */}
             <Image
-              src={
-                linkHub.avatar && !linkHub.avatar.startsWith("http")
-                  ? linkHub.avatar
-                  : "/placeholder.svg"
-              }
+              src={linkHub.avatar || "/placeholder.svg"}
               alt={linkHub.name}
               width={48}
               height={48}
@@ -247,7 +244,7 @@ export default function LinkHubManager({
         </div>
       </div>
 
-      {/* ===================== LISTA DE LINKS ===================== */}
+      {/* LINKS LIST */}
       <div className="glass rounded-2xl md:px-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Links ({links.length})</h3>
@@ -298,20 +295,16 @@ export default function LinkHubManager({
 
                             <div className="flex items-center justify-start space-x-2 mb-1">
 
-                              {/* ------------ LINK ICON (CORRIGIDO) ------------ */}
-                              {link.icon && (
-                                <Image
-                                  src={
-                                    link.icon.startsWith("http")
-                                      ? "/placeholder.svg"
-                                      : link.icon
-                                  }
-                                  alt={link.title}
-                                  width={40}
-                                  height={40}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
-                              )}
+                              {/* LINK ICON */}
+{link.icon && (
+  <Image
+    src={link.icon}
+    alt={link.title}
+    width={40}
+    height={40}
+    className="w-10 h-10 rounded-full object-cover"
+  />
+)}
 
                               <h4 className="font-medium truncate">
                                 {link.title}
@@ -446,7 +439,7 @@ export default function LinkHubManager({
         )}
       </div>
 
-      {/* -------- Editar Link -------- */}
+      {/* EDIT LINK */}
       <Dialog open={!!editingLink} onOpenChange={() => setEditingLink(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -463,7 +456,7 @@ export default function LinkHubManager({
         </DialogContent>
       </Dialog>
 
-      {/* -------- Editar LinkHub -------- */}
+      {/* EDIT LINKHUB */}
       <Dialog open={editingLinkHub} onOpenChange={setEditingLinkHub}>
         <DialogContent className="max-w-md">
           <DialogHeader>

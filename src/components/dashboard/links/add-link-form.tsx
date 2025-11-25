@@ -1,128 +1,90 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
 import { toast } from "sonner";
+import { LinkIconUploader } from "@/components/uploadthing/upload-button";
 
-interface AddLinkFormProps {
-  linkHubId: string;
-  onSuccess: () => void;
-}
 
-export default function AddLinkForm({
-  linkHubId,
-  onSuccess,
-}: AddLinkFormProps) {
+export default function AddLinkForm({ linkHubId, onSuccess }) {
   const [formData, setFormData] = useState({
     title: "",
     url: "",
     description: "",
-    type: "",
     icon: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
- 
-    if (formData.title.length > 20) {
-      toast.error("Title is too long.(max 20 char)");
-      return;
-    }
-    if (formData.description.length > 35) {
-      toast.error("Description is too long.(max 35 char)");
-      return;
-    }
-       setIsLoading(true);
+
+    setLoading(true);
+
     try {
-      const response = await fetch(`/api/linkhubs/${linkHubId}/links`, {
+      const res = await fetch(`/api/linkhubs/${linkHubId}/links`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        toast.success("Your new link has been added to your LinkHub.");
-        onSuccess();
-        setFormData({
-          title: "",
-          url: "",
-          description: "",
-          type: "",
-          icon: "",
-        });
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to add link");
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Please try again later."
-      );
+      if (!res.ok) throw new Error("Erro ao criar link");
+
+      toast.success("Link criado!");
+      onSuccess();
+    } catch (err) {
+      toast.error(err.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="title">Título *</Label>
+        <Label>Título</Label>
         <Input
-          id="title"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder="Intruduz um título"
           required
         />
       </div>
 
       <div>
-        <Label htmlFor="url">URL *</Label>
+        <Label>URL</Label>
         <Input
-          id="url"
-          type="url"
           value={formData.url}
           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-          placeholder="https://exemplo.pt"
           required
         />
       </div>
 
       <div>
-        <Label htmlFor="description">Descrição</Label>
+        <Label>Descrição</Label>
         <Textarea
-          id="description"
           value={formData.description}
-          onChange={(e) =>
-            setFormData({ ...formData, description: e.target.value })
-          }
-          placeholder="Breve descrição do teu link"
-          rows={3}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
         />
       </div>
 
-      <div>
-        <Label htmlFor="icon">Icon URL</Label>
-        <Input
-          id="icon"
-          type="url"
-          value={formData.icon}
-          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-          placeholder="https://exemplo.pt/icon.png"
-        />
-      </div>
+<div>
+  <Label>Icon</Label>
 
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? "A Criar..." : "Criar Link"}
-        </Button>
-      </div>
+  {/* UploadThing uploader */}
+  <LinkIconUploader
+    onUploaded={(url) => setFormData({ ...formData, icon: url })}
+  />
+
+  {/* Campo apenas leitura */}
+  <Input value={formData.icon} readOnly className="mt-2" />
+</div>
+
+
+      <Button type="submit" disabled={loading}>
+        {loading ? "A criar..." : "Criar Link"}
+      </Button>
     </form>
   );
 }
