@@ -1,177 +1,164 @@
 "use client";
 
-import type React from "react";
-
 import { useState, useEffect } from "react";
-import { User, Camera, Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import AppearanceCustomizer from "@/components/dashboard/appearance-customizer";
+import type { LinkHub } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import PublicProfile from "@/components/public/public-profile";
 import Image from "next/image";
 
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string | null;
-  bio?: string | null;
-  createdAt: string;
-}
-
-export default function ProfileSettings() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    bio: "",
-    avatar: "",
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+export default function AppearancePage() {
+  const [linkHubs, setLinkHubs] = useState<LinkHub[]>([]);
+  const [selectedLinkHub, setSelectedLinkHub] = useState<LinkHub | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProfile();
+    fetchLinkHubs();
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchLinkHubs = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch("/api/user/profile");
+      const response = await fetch("/api/linkhubs");
       if (response.ok) {
         const data = await response.json();
-        setProfile(data);
-        setFormData({
-          name: data.name || "",
-          bio: data.bio || "",
-          avatar: data.avatar || "",
-        });
+        setLinkHubs(data);
+
+        if (data.length > 0) {
+          await fetchLinkHubDetails(data[0].id);
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch profile:", error);
-      toast.error("Failed to load profile");
+      console.error("Failed to fetch LinkHubs:", error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-
+  const fetchLinkHubDetails = async (id: string) => {
     try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
+      const response = await fetch(`/api/linkhubs/${id}/appearance`);
       if (response.ok) {
-        const updatedProfile = await response.json();
-        setProfile(updatedProfile);
-        toast.success("Profile updated successfully!");
-      } else {
-        throw new Error("Failed to update profile");
+        const detailedData = await response.json();
+        setSelectedLinkHub(detailedData);
       }
     } catch (error) {
-      console.error("Failed to update profile:", error);
-      toast.error("Failed to update profile");
-    } finally {
-      setIsSaving(false);
+      console.error("Failed to fetch LinkHub details:", error);
     }
   };
 
-  if (isLoading) {
+  const handleLinkHubChange = async (value: string) => {
+    const linkHub = linkHubs.find((lh) => lh.id === value);
+    if (linkHub) {
+      setSelectedLinkHub(null);
+      await fetchLinkHubDetails(linkHub.id);
+    }
+  };
+
+  const handleLinkHubUpdate = (updatedLinkHub: LinkHub) => {
+    setSelectedLinkHub(updatedLinkHub);
+    setLinkHubs(
+      linkHubs.map((lh) => (lh.id === updatedLinkHub.id ? updatedLinkHub : lh))
+    );
+  };
+
+  // ------------------------------------------------------------
+  // LOADING
+  // ------------------------------------------------------------
+  if (loading) {
     return (
-      <div className="glass rounded-2xl p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+      <div className="space-y-8 p-6">
+        <div className="glass rounded-2xl ">
+          <Skeleton className="h-4 rounded-2xl w-48 mb-4" />
+          <Skeleton className="h-10 w-full max-w-md rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6 col-span-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-96 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="h-[600px] w-full rounded-2xl" />
         </div>
       </div>
     );
   }
 
+  // ------------------------------------------------------------
+  // MAIN PAGE
+  // ------------------------------------------------------------
   return (
-    <div className="glass rounded-2xl p-6">
-      <div className="flex items-center space-x-2 mb-6">
-        <User className="w-5 h-5 text-primary" />
-        <h2 className="text-xl font-semibold">Profile Settings</h2>
+    <div className="space-y-8 md:p-5">
+      <div>
+        <h1 className="text-xl font-bold">Design</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="hidden items-center space-x-6">
-          <div className="relative">
-            <Image
-              src={
-                formData.avatar ||
-                "/placeholder.svg"
-              }
-              width={80}
-              height={80}
-              alt="Profile"
-              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+      {/* SELECT LINKHUB */}
+      <div className="glass rounded-2xl p-6">
+        <h2 className="text-lg font-semibold mb-4">
+          Escolhe um LinkHub para personalizar.
+        </h2>
+
+        <Select
+          value={selectedLinkHub?.id || ""}
+          onValueChange={handleLinkHubChange}
+        >
+          <SelectTrigger className="w-full max-w-md">
+            <SelectValue placeholder="Seleciona um LinkHub para personalizar." />
+          </SelectTrigger>
+
+          <SelectContent>
+            {linkHubs.map((linkHub) => (
+              <SelectItem key={linkHub.id} value={linkHub.id}>
+                <div className="flex items-center space-x-2">
+
+                  {/* FIX: next/image + fallback */}
+                  <Image
+                    src={linkHub.avatar || "/placeholder.svg"}
+                    alt={linkHub.name}
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="w-4 h-4 rounded-full object-cover"
+                  />
+
+                  <span>{linkHub.name}</span>
+
+                  {linkHub.isPersonal && (
+                    <span className="text-primary">(Pessoal)</span>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* MAIN CUSTOMIZER + PREVIEW */}
+      {selectedLinkHub ? (
+        <div className="flex flex-col 2xl:flex-row justify-center xl:justify-normal gap-8">
+          <div className="xl:w-[65%]">
+            <AppearanceCustomizer
+              linkHub={selectedLinkHub}
+              onUpdate={handleLinkHubUpdate}
             />
-            <label
-              htmlFor="avatar-upload"
-              className="absolute -bottom-2 -right-2 w-8 h-8 bg-primary rounded-full flex items-center justify-center cursor-pointer hover:bg-primary transition-colors"
-            >
-              <Camera className="w-4 h-4 text-white" />
-            </label>
           </div>
-          <div>
-            <h3 className="font-medium">Profile Picture</h3>
-            <p className="text-sm text-gray-500">
-              Upload a new avatar for your profile
-            </p>
-            <Input
-              placeholder="Or paste image URL"
-              value={formData.avatar}
-              onChange={(e) =>
-                setFormData({ ...formData, avatar: e.target.value })
-              }
-              className="mt-2"
-            />
+
+          <div className="xl:fixed lg:top-2 max-h-[calc(100vh-20px)] lg:right-8 xl:w-[25%] rounded-md overflow-scroll hideScrollBar">
+            <PublicProfile linkHub={selectedLinkHub} />
           </div>
         </div>
-
-        <div>
-          <Label htmlFor="name">Display Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Your display name"
-            required
-          />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Skeleton className="h-[800px] w-full rounded-2xl" />
+          <Skeleton className="h-[600px] w-full rounded-2xl" />
         </div>
-
-        <div>
-          <Label htmlFor="email">Email Address</Label>
-          <Input id="email" value={profile?.email || ""} disabled />
-        </div>
-
-        <div>
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea
-            id="bio"
-            value={formData.bio}
-            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-            placeholder="Tell people about yourself..."
-            rows={4}
-            maxLength={160}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            {formData.bio.length}/160 characters
-          </p>
-        </div>
-
-        <Button type="submit" disabled={isSaving} className="w-full">
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? "A Guardar..." : "Guardar Alterações"}
-        </Button>
-      </form>
+      )}
     </div>
   );
 }
